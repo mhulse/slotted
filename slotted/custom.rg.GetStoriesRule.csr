@@ -1,0 +1,119 @@
+<csr:rule name="custom.rg.GetStoriesRule" match="custom:rg:get:stories">
+	
+	<csr:class super="dt.common.page.Rule, %CSP.RuleBlock" />
+	
+	<csr:description>
+		
+		<h1>custom.rg.GetStoriesRule</h1>
+		
+		<ul>
+			<li>Version: v3.0.0</li>
+			<li>Date: Monday, January 7, 2013</li>
+			<li>Docs: <a href="https://github.com/mhulse/slotted">https://github.com/mhulse/slotted</a></li>
+		</ul>
+		
+		<p>
+			The <code>&lt;custom:rg:get:stories&gt;</code> RULE (a.k.a tag) returns a <class>%ListOfObjects</class> of <class>dt.cms.schema.Mapping</class> objects from an Area(s) in a Section.
+			<br>
+			Each object has been assigned to the attribute <code>value</code> which you can access in each itteration of the tag's loop.
+		</p>
+		
+	</csr:description>
+	
+	<csr:attribute name="publication" description="Publication name; gPublication.GetName() used by default."             type="publication:STRING"          />
+	<csr:attribute name="section"     description="Section name; gSection.GetName() used by default."                     type="section:STRING"              />
+	<csr:attribute name="layout"      description="Page Layout name (required)."                                          type="layout:STRING"      required />
+	<csr:attribute name="grid"        description="Grid name (required)."                                                 type="grid:STRING"        required />
+	<csr:attribute name="area"        description="Area(s) name (required)."                                              type="area:STRING"        required />
+	<csr:attribute name="items"       description="Number of Mapping objects to return. The default number is '5'."       type="items:INTEGER"               />
+	<csr:attribute name="include"     description="Include only these Slots (comma delimited list)."                      type="include:STRING"              />
+	<csr:attribute name="exclude"     description="Exclude only these Slots (comma delimited list)."                      type="exclude:STRING"              />
+	<csr:attribute name="version"     description="Staging Version(s) to pull from; '0' (live) used by default."          type="version:STRING"              />
+	<csr:attribute name="order"       description="Custom ORDER BY, used in SQL statement."                               type="order:STRING"                />
+	<csr:attribute name="direction"   description="Direction of iteration; either forward (default) or backward."         type="direction:STRING"            />
+	<csr:attribute name="count"       description="Loop counter name; the default name is 'count'."                       type="count:INTEGER"               />
+	<csr:attribute name="value"       description="Mapping object name; the default name is 'value'."                     type="value:OBJECT"                />
+	<csr:attribute name="obj"         description="Local %ListOfObjects object variable name; the default name is 'obj'." type="obj:OBJECT"                  />
+	<csr:attribute name="total"       description="Total number of Mapping objects returned."                             type="total:INTEGER"               />
+	
+	<csr:action>
+		
+		<script language="cache" runat="compiler">
+			do ##this.RenderDTStartTag()
+		</script>
+		
+		<script language="cache" runat="compiler">
+			
+			; Initialize:
+			new csr
+			
+			; QuoteAttribute: The value is quoted for substitution with #()#, ##( )## and ##''## expressions resolved.
+			set csr("publication") = ##this.QuoteAttribute("publication",    "")
+			set csr("section")     = ##this.QuoteAttribute("section",        "")
+			set csr("layout")      = ##this.QuoteAttribute("layout",         "")
+			set csr("grid")        = ##this.QuoteAttribute("grid",           "")
+			set csr("area")        = ##this.QuoteAttribute("area",           "")
+			set csr("items")       = ##this.QuoteAttribute("items",         "5")
+			set csr("include")     = ##this.QuoteAttribute("include",        "")
+			set csr("exclude")     = ##this.QuoteAttribute("exclude",        "")
+			set csr("version")     = ##this.QuoteAttribute("version",       "0")
+			set csr("order")       = ##this.QuoteAttribute("order",          "")
+			
+			; GetAttribute: The value already has any ##( )## and ##''## expressions resolved.
+			set csr("direction")   = ##this.GetAttribute("direction", "forward")
+			set csr("count")       = ##this.GetAttribute("count",       "count")
+			set csr("value")       = ##this.GetAttribute("value",       "value")
+			set csr("obj")         = ##this.GetAttribute("obj",           "obj")
+			set csr("total")       = ##this.GetAttribute("total",       "total")
+			
+			; Should the list be ouput in a forward or backward direction?
+			set csr("next") = $case($zconvert(csr("direction"), "U"), "BACKWARD":"Previous", :"Next")
+			
+			; Handle blocks and labels:
+			do ##this.NewBlock()
+			set ##this.EndLabel = ##this.GetNewLabel()
+			set ##this.NextLabel = ##this.GetNewLabel()
+			
+			; Write code to server:
+			do ##this.WriteServer(" new " _ csr("count") _ ", " _ csr("total") _ ", " _ csr("value") _ ", " _ csr("obj") ) // Warning: You must/should declare all 'runat="server"' variables as 'new'!
+			do ##this.WriteServer(" set " _ csr("obj") _ " = ##class(custom.rg.Slotted).stories($case(" _ csr("publication") _ ", """":gPublication.getName(), :" _ csr("publication") _ "), $case(" _ csr("section") _ ", """":gSection.getName(), :" _ csr("section") _ "), " _ csr("layout") _ ", " _ csr("grid") _ ", " _ csr("area") _ ", " _ csr("items") _ ", " _ csr("include") _ ", " _ csr("exclude") _ ", " _ csr("version") _ ", " _ csr("order") _ ") ")
+			do ##this.WriteServer(" set " _ csr("total") _ " = " _ csr("obj") _ ".Count() ")
+			do ##this.WriteServer(" set " _ csr("count") _ " = """" ")
+			do ##this.WriteServer( ##this.NextLabel )
+			do ##this.WriteServer(" set " _ csr("value") _ " = " _ csr("obj") _ ".Get" _ csr("next") _ "(." _ csr("count") _ ") ")
+			do ##this.WriteServer(" if (" _ csr("count") _ " = """") { ")
+			do ##this.WriteServer(" 	goto " _ ##this.EndLabel _ " ;{ ")
+			do ##this.WriteServer(" } ")
+			
+		</script>
+		
+		<csr:children>
+		
+		<script language="cache" runat="compiler">
+			
+			; Handle labels and blocks:
+			do ##this.WriteServer(" goto " _ ##this.NextLabel)
+			do ##this.WriteServer( ##this.EndLabel _ " ;} ")
+			do ##this.RemoveBlock()
+			
+			; Initialize:
+			new csr
+			
+			; Get attributes:
+			set csr("count")     = ##this.GetAttribute("count",       "count")
+			set csr("value")     = ##this.GetAttribute("value",       "value")
+			set csr("obj")       = ##this.GetAttribute("obj",           "obj")
+			set csr("total")     = ##this.GetAttribute("total",       "total")
+			
+			; Server garbage collection:
+			do ##this.WriteServer(" kill " _ csr("count") _ ", " _ csr("total") _ ", " _ csr("value") _ ", " _ csr("obj") )
+			
+		</script>
+		
+		<script language="cache" runat="compiler">
+			do ##this.RenderDTEndTag()
+		</script>
+		
+	</csr:action>
+	
+</csr:rule>

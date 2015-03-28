@@ -1,0 +1,207 @@
+<script language="cache" runat="server">
+	
+	new demo
+	
+	/*
+	**--------------------------------------------------------------------------
+	**
+	** Demo settings:
+	**
+	**--------------------------------------------------------------------------
+	*/
+	
+	/*
+	**----------------------------------
+	** Enter Publication name:
+	**----------------------------------
+	*/
+	
+	set demo("publication") = "rg"
+	
+	/*
+	**----------------------------------
+	** Enter Section name:
+	**----------------------------------
+	*/
+	
+	set demo("section") = "sports"
+	
+	/*
+	**----------------------------------
+	** Area name(s):
+	**----------------------------------
+	*/
+	
+	set demo("area") = "Top Stories, Stories" // Comma delimited (leading/trailing whitespace is trimmed).
+	
+	/*
+	**----------------------------------
+	** Staging versions:
+	**----------------------------------
+	*/
+	
+	set demo("version") = 0 // If more than one, convert to string and use a comma delimiter.
+	
+	/*
+	**----------------------------------
+	** Slots to "include":
+	**----------------------------------
+	*/
+	
+	set demo("include") = "" // Comma delimited.
+	
+	/*
+	**----------------------------------
+	** Slots to "exclude":
+	**----------------------------------
+	*/
+	
+	set demo("exclude") = "" // Comma delimited.
+	
+	/*
+	**----------------------------------
+	** Advanced! Custom ordering:
+	**----------------------------------
+	*/
+	
+	set demo("order") = "" // "mp.cmsStory->publishedToWebDate ASC" // You'll need to check the original query to determine the possible options.
+	
+	/*
+	**----------------------------------
+	** Number of items to return:
+	**----------------------------------
+	*/
+	
+	set demo("items") = "10" // 5 is default.
+	
+</script>
+
+#[ new pid set pid = ##class(dt.cms.support.Utilities).getPublicationID(demo("publication")) ]#
+
+<csp:object name="gPublication" classname="dt.cms.schema.Publication" objid="#(pid)#" />
+
+<csp:if condition=($isobject(gPublication))>
+	
+	#[ new sid set sid = ##class(dt.cms.support.Utilities).getSectionID(gPublication, demo("section")) ]#
+	
+	<csp:object name="gSection" classname="dt.cms.schema.Section" objid="#(sid)#" />
+	
+	<csp:if condition=($isobject(gSection))>
+		
+		<script language="cache" runat="server">
+			
+			/*
+			**--------------------------------------------------------------------------
+			**
+			** These could be "config" variables found in a global config.csp file.
+			** Putting here for demo's sake.
+			** On an actual template, gPublication/gSection would be already available.
+			**
+			**--------------------------------------------------------------------------
+			*/
+			
+			new g
+			
+			; Current page:
+			set g("page") = ##class(dt.cms.support.Utilities).getCurrentPage(gSection) // dt.cms.schema.Page
+			
+			; Current Page Layout:
+			set g("pagelayout") = g("page").pageLayoutID // dt.cms.schema.PageLayout
+			
+			; Current Grid:
+			set g("grid") = ##class(dt.cms.support.Utilities).getCurrentGrid(gSection) // dt.cms.schema.Grid 
+			
+			// Note: We can't depend on gGrid being available in all contexts (it's missing from the story pages).
+			// Thus the reason why it's not a bad idea put the above variables in a global config file.
+			// Addtionally, the above variables reference the "current" values.
+			
+		</script>
+		
+		<h1>#(gSection.getLabel())#</h1>
+		
+		<ol>
+			
+			<custom:rg:get:stories layout="#(g("pagelayout").name)#" grid="#(g("grid").name)#" area="#(demo("area"))#" items="#(demo("items"))#" include="#(demo("include"))#" exclude="#(demo("exclude"))#" version="#(demo("version"))#" order="#(demo("order"))#" direction="forward" count="count" value="value" obj="obj" total="total">
+				
+				#[ new story set story = value.getCMSStory() ]#
+				
+				<li>
+					<b>Value:</b> #(value)#
+					<ul>
+						<li><b>CMSStory</b> #(story)#</li>
+						<li><b>Slug:</b> <span style="color:blue">#(story.getName())#</span></li>
+						<li><b>publishedToWebDate:</b> #(story.publishedToWebDate)#</li>
+						<li>
+							<b>FullLayout:</b> #(value.localFullLayoutID)#
+							<ul>
+
+								<li><b>FullLayout name:</b> #(value.localFullLayoutID.name)#</li>
+							</ul>
+						</li>
+						<li><b>Total:</b> #(total)#</li>
+						<li><b>Count:</b> #(count)#</li>
+						<csp:if condition=(count=1)>
+							<li><b style="color:red">First</b></li>
+						</csp:if>
+						<csp:if condition=(count=total)>
+							<li><b style="color:red">Last</b></li>
+						</csp:if>
+						<li><b>Obj:</b> #(obj)#</li>
+					</ul>
+				</li>
+				
+				#[ kill story ]#
+				
+			</custom:rg:get:stories>
+			
+		</ol>
+		
+		<hr>
+		
+		<h2>Testing method call:</h2>
+		
+		#[ new slotted set slotted = ##class(custom.rg.Slotted).stories(gPublication.getName(), gSection.getName(), g("pagelayout").name, g("grid").name, demo("area"), demo("items"), demo("include"), demo("exclude"), demo("version"), demo("order")) ]#
+		
+		<ol>
+			<csp:loop counter="x" from="1" to="#(slotted.Count())#">
+				
+				<li>#(slotted.GetAt(x))#</li>
+				
+			</csp:loop>
+		</ol>
+		
+		#[ kill slotted ]#
+		
+		#[ kill g ]#
+		
+	</csp:if>
+	
+	#[ kill sid ]#
+	
+</csp:if>
+
+#[ kill demo, pid ]#
+
+#[ set (gPublication, gSection) = "" ]#
+
+<hr>
+
+<h3>Debug:</h3>
+
+<script language="cache" runat="server">
+	
+	; Debug:
+	write !, "<pre>"
+	try {
+		set currIO = ##class(%SYS.NLS.Device).SetIO("HTML")
+		zwrite
+	}
+	catch {
+		write "ERROR: ", $ZERROR
+	}
+	if ($get(currIO) '= "") {
+		do ##class(%SYS.NLS.Device).SetIO(currIO)
+	}
+	write "</pre>"
+	
+</script>
